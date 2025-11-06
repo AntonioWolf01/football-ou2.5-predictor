@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# MacOS
+.DS_Store
+
+# Model files (if they're large - uncomment if needed)
+# model/*.joblib
+# model/*.pkl
+# model/*.h5
+
+# Large data files (uncomment if CSVs are huge)
+# data/*.csv
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Environment variables
+.env
+
+# Plots and outputs (if you don't want to track them)
+# *.png
+# *.jpg
