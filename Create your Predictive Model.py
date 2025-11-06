@@ -39,11 +39,11 @@ except AttributeError:
 
 # Global Constants
 RANDOM_STATE = 8
-N_ITER_BAYES = 25  # Reduced for demonstration; increase for production (e.g., 100+)
+N_ITER_BAYES = 50  # Reduced for demonstration; increase for production (e.g., 100+)
 N_SPLITS_TIME_CV = 4
 
 # Simulation Constants
-SIM_N_SPLITS = 1000
+SIM_N_SPLITS = 10000
 SIM_PORTION_SIZE = 0.8
 INITIAL_BANKROLL = 500.0
 MIN_BET_CONFIDENCE = 0.60
@@ -464,20 +464,58 @@ if __name__ == '__main__':
         )
         search.fit(X_train, y_train)
         trained_models[name] = search.best_estimator_
+
+        # --- FIX: Populate model_log_losses for t-test ---
+        # Extract per-fold scores for the t-test
+        # The scores are stored in cv_results_ for the *best* parameter set
+        fold_scores_neg_ll = []
+        best_estimator_index = search.best_index_
+        
+        # Use the N_SPLITS_TIME_CV constant defined at the top of the script
+        for i in range(N_SPLITS_TIME_CV):
+            score_key = f'split{i}_test_score'
+            # Get the neg_log_loss for this fold from the best parameter set
+            fold_score = search.cv_results_[score_key][best_estimator_index]
+            fold_scores_neg_ll.append(fold_score)
+        
+        # Store the *positive* log-loss scores (since lower is better)
+        model_log_losses[name] = [-score for score in fold_scores_neg_ll]
+        # --- END FIX ---
+
         print(f"        {name} finished in {time.time()-start_t:.1f}s | Best CV LogLoss: {-search.best_score_:.4f}")
 
     # --- 4.4 Evaluation & Statistical Testing ---
     print("\n[4/6] Evaluating Models on Test Set...")
-    results = {}
+    results = {} # For scalar scores (Log Loss, Brier Score)
+
+    # --- Start loop for detailed reports ---
+    print("\n--- Detailed Classification Reports ---")
+
     for name, model in trained_models.items():
+    
+        # --- Get Probabilities and Predictions ---
         y_prob = model.predict_proba(X_test)
+        y_pred = model.predict(X_test)  
+
+        # --- 1. Calculate Scores ---
         ll = log_loss(y_test, y_prob)
-        results[name] = {'Log Loss': ll}
+        bsl = brier_score_loss(y_test, y_prob[:, 1])                                   
+        # --- 2. Store Scalar Scores ---
+        results[name] = {
+            'Log Loss': ll,
+            'Brier Score': bsl  
+        }
+        # --- 3. Print Classification Report ---
+        print(f"\nModel: {name}") 
+        print(classification_report(y_test, y_pred)) 
+        print("-" * 40) # <-- Added for readability
 
-    results_df = pd.DataFrame(results).T.sort_values('Log Loss')
-    print("\n--- Performance Summary ---")
+    # --- Performance Summary Table (with all scalar scores) ---
+    # Sort by your preferred metric
+    results_df = pd.DataFrame(results).T.sort_values('Log Loss') 
+    print("\n--- Performance Summary (Scores) ---")
     print(results_df)
-
+    
     # Paired T-Test for Statistical Significance
     best_model_name = results_df.index[0]
     print(f"\n--- Statistical Significance (vs {best_model_name}) ---")
@@ -486,6 +524,7 @@ if __name__ == '__main__':
             t_stat, p_val = ttest_rel(model_log_losses[best_model_name], model_log_losses[name])
             sig = "Significant" if p_val < 0.05 else "Not Significant"
             print(f"  {best_model_name} vs {name}: p-value = {p_val:.4f} ({sig})")
+
 
     # --- 4.5 Profitability Simulation ---
     print(f"\n[5/6] Running Monte Carlo Profit Simulation ({SIM_N_SPLITS} runs)...")
